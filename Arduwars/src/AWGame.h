@@ -140,7 +140,7 @@ private:
     void unmarkUnitOnMap(const GameUnit *aUnit);
 
     // This method marks the maptiles, where an enemy unit is which can be attacked.
-    void markPositionForAttack(Point position, int8_t distance, AWPlayer &attackingPlayer);
+    void markPositionForAttack(Point position, uint8_t distance, AWPlayer &attackingPlayer);
 
     // returns the position of the next marked tile.
     // Arguments:

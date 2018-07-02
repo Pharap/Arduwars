@@ -1379,36 +1379,44 @@ void AWGame::unmarkUnitOnMap(const GameUnit *aUnit){
   }
 }
 
-void AWGame::markPositionForAttack(Point position, int8_t distance, AWPlayer &attackingPlayer){
+void AWGame::markPositionForAttack(Point position, uint8_t distance, AWPlayer &attackingPlayer){
 
-    // check if we are at the end
-    if (distance <= 0) return;
-
-    // check player
+    const int16_t tempStartX = position.x - distance;
+    const int16_t tempStartY = position.y - distance;
+    const int16_t tempEndX = position.x + distance;
+    const int16_t tempEndY = position.y + distance;
+    
+    // Note that start must be a valid coordinate
+    uint8_t startX = (tempStartX < 0) ? 0 : (tempStartX > mapSize.x - 1) ? mapSize.x - 1 : tempStartX;
+    uint8_t startY = (tempStartY < 0) ? 0 : (tempStartY > mapSize.y - 1) ? mapSize.y - 1 : tempStartY;
+    
+    // Note that end is permitted to be larger than a valid coordinate
+    uint8_t endX = (tempEndX < 0) ? 0 : (tempEndX > mapSize.x) ? mapSize.x : tempEndX;
+    uint8_t endY = (tempEndY < 0) ? 0 : (tempEndY > mapSize.y) ? mapSize.y : tempEndY;
+    
+    const uint8_t originX = position.x;
+    const uint8_t originY = position.y;
+    
     uint8_t thisPlayer = (attackingPlayer == player1)?MapTile::BelongsToPlayer1:MapTile::BelongsToPlayer2;
+    
+    for(uint8_t y = startY; y < endY; ++y)
+    {
+      for(uint8_t x = startY; x < endX; ++x)
+      {
+        uint8_t tileDistance = absT(originX - x) + absT(originY - y);
+        
+        if(tileDistance > distance)
+          continue;
 
-    // check for bounds
-    if (position.x < 0 || position.x >= mapSize.x || position.y < 0 || position.y >= mapSize.y ) return;
-
-    // get the tile
-    MapTile tile = mapTileData[position.y*mapSize.x+position.x];
-
-    // chek if there is an enemy unit
-    if (!tile.showsFog && tile.hasUnit && tile.unitBelongsTo != thisPlayer) {
-      tile.showSelection = 1;
-      mapTileData[position.y*mapSize.x+position.x] = tile;
+        // get the tile
+        MapTile tile = mapTileData[y*mapSize.x+x];
+        if (!tile.showsFog && tile.hasUnit && tile.unitBelongsTo != thisPlayer) {
+          tile.showSelection = 1;
+          mapTileData[y*mapSize.x+x] = tile;
+        }
+        
+      }
     }
-
-    // shorten the distance for every step.
-    distance--;
-
-    // recursively call this method for every orientation
-    markPositionForAttack({position.x+1, position.y}, distance, attackingPlayer);
-    markPositionForAttack({position.x, position.y-1}, distance, attackingPlayer);
-    markPositionForAttack({position.x-1, position.y}, distance, attackingPlayer);
-    markPositionForAttack({position.x, position.y+1}, distance, attackingPlayer);
-
-    return;
 }
 
 
