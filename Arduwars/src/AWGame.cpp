@@ -1610,14 +1610,12 @@ void AWGame::castRayTo(Point origin, bool seeThrough, AWPlayer &aPlayer, int8_t 
     // check for bounds and remove fog
     if (x0 >= 0 && y0 >= 0 && x0 < mapSize.x && y0 < mapSize.y && currentDistance <= r) {
 
-      // get the corresponding map tile
-      MapTile tile = mapTileData[x0+y0*mapSize.x];
-
       // update tile data
       if (forestLimit >= 0 || seeThrough)
-        tile.showsFog = 0;
+        mapTileData[x0+y0*mapSize.x].showsFog = 0;
 
-      mapTileData[x0+y0*mapSize.x] = tile;
+      // get the corresponding map tile
+      MapTile tile = mapTileData[x0+y0*mapSize.x];
 
       // ignore the origin
       if (currentDistance != 0 && !seeThrough){
