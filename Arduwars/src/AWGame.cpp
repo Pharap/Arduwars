@@ -1401,9 +1401,10 @@ void AWGame::markPositionForAttack(Point position, uint8_t distance, AWPlayer &a
     
     for(uint8_t y = startY; y < endY; ++y)
     {
+      uint8_t tileDistanceY = absT(originY - y);
       for(uint8_t x = startY; x < endX; ++x)
       {
-        uint8_t tileDistance = absT(originX - x) + absT(originY - y);
+        uint8_t tileDistance = absT(originX - x) + tileDistanceY;
         
         if(tileDistance > distance)
           continue;
