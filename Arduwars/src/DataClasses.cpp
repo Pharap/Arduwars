@@ -39,7 +39,7 @@ bool GameUnit::canUnitAttackUnit(UnitType attacker, UnitType defender){
   return (lutForAttacker & (0b1000000000000000 >> static_cast<uint16_t>(defender)) );
 }
 
-UnitTraits UnitTraits::traitsForUnitType(UnitType unitType){
+const UnitTraits UnitTraits::traitsForUnitType(UnitType unitType){
   UnitTraits traits;
 
   pgm_readAnything(&allUnitTraits[static_cast<uint8_t>(unitType)], traits);
@@ -80,11 +80,6 @@ GameBuilding::GameBuilding(MapTileType type){
 // ====================================================
 // Player
 
-AWPlayer::AWPlayer(uint8_t aid){
-  this->playerID = aid;
-  this->reset();
-}
-
 void AWPlayer::reset(){
   // default 30 money
   money = 30;
@@ -106,10 +101,6 @@ GameUnit * AWPlayer::getUnitForMapCoordinates(Point coordinates){
   }
 
   return nullptr;
-}
-
-bool AWPlayer::operator==(const AWPlayer& other) const{
-    return this->playerID == other.playerID;
 }
 
 // ====================================================

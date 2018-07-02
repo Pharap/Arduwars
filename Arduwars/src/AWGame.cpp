@@ -7,7 +7,6 @@
 #include "ShopData.h"
 
 #include <UtilityFunctions.h>
-#include <Utility.h>
 #include <FlashString.h>
 #include "PointMath.h"
 #include "UnitSprites.h"
@@ -145,7 +144,7 @@ AWGameState AWGame::showMainMenu(){
 }
 
 // This method displays the map selection menu to the player.
-const unsigned char * AWGame::showMapSelection(AWGameState aState){
+unsigned const char * AWGame::showMapSelection(AWGameState aState){
   // In this variable we will store the index of the cursor so
   // we know what the player has selected.
   int8_t cursorIdx = 0;
@@ -238,11 +237,11 @@ void AWGame::startNewSinglePlayerGame(){
   daysPlayed = 0;
 
   // reset players
-  player1.reset();
-  player2.reset();
+  player1->reset();
+  player2->reset();
 
   // shop map selection
-  const unsigned char *mapData = showMapSelection(AWGameState::playSinglePlayer);
+  unsigned const char *mapData = showMapSelection(AWGameState::playSinglePlayer);
 
   // return if no map has been selected
   if (mapData == nullptr) return;
@@ -281,11 +280,11 @@ void AWGame::startNewMultiplayerPlayerGame(){
   daysPlayed = 0;
 
   // reset players
-  player1.reset();
-  player2.reset();
+  player1->reset();
+  player2->reset();
 
   // shop map selection
-  const unsigned char *mapData = showMapSelection(AWGameState::playMultiPlayer);
+  unsigned const char *mapData = showMapSelection(AWGameState::playMultiPlayer);
 
   // return if no map has been selected
   if (mapData == nullptr) return;
@@ -298,7 +297,7 @@ void AWGame::startNewMultiplayerPlayerGame(){
 
 void AWGame::runMultiPlayerGame(){
 
-  AWPlayer *currentPlayer = &player1;
+  AWPlayer *currentPlayer = player1;
 
   // Game Loop
   while (true) {
@@ -307,7 +306,7 @@ void AWGame::runMultiPlayerGame(){
     makeScreenTransition();
 
     // show dialog for player
-    showDialog((*currentPlayer == player1)?LOCA_player1:LOCA_player2);
+    showDialog((currentPlayer == player1)?LOCA_player1:LOCA_player2);
 
     // activate all units
     for (uint8_t i = 0; i < currentPlayer->units.getCount(); i++) {
@@ -318,13 +317,13 @@ void AWGame::runMultiPlayerGame(){
     for (uint8_t i = 0; i < gameBuildings.getCount(); i++) {
       if(gameBuildings[i].buildingType == static_cast<uint8_t>(MapTileType::City) &&
       gameBuildings[i].isOccupied &&
-      gameBuildings[i].belongsToPlayer == ((*currentPlayer == player1)?MapTile::BelongsToPlayer1:MapTile::BelongsToPlayer2)){
+      gameBuildings[i].belongsToPlayer == ((currentPlayer == player1)?MapTile::BelongsToPlayer1:MapTile::BelongsToPlayer2)){
         currentPlayer->money += AWPlayer::BaseIncome;
       }
     }
 
     // update player map
-    updateMapForPlayer(*currentPlayer);
+    updateMapForPlayer(currentPlayer);
 
     // Draw map and HUD for new player
     arduboy.clear();
@@ -342,12 +341,12 @@ void AWGame::runMultiPlayerGame(){
     drawMapAtPosition(cameraPosition * -1);
 
     // Draw HUD
-    drawHudForPlayer(*currentPlayer);
+    drawHudForPlayer(currentPlayer);
 
     arduboy.display();
 
     // show player round
-    doRoundOfPlayer(*currentPlayer);
+    doRoundOfPlayer(currentPlayer);
 
     // check for win condition
     if (daysPlayed == 255) {
@@ -356,22 +355,21 @@ void AWGame::runMultiPlayerGame(){
     }
 
     // switch players
-    if (*currentPlayer == player1){
-      currentPlayer = &player2;
-    }
+    if (currentPlayer == player1)
+      currentPlayer = player2;
     else{
-      currentPlayer = &player1;
+      currentPlayer = player1;
       daysPlayed++;
     }
   }
 }
 
-void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
+void AWGame::doRoundOfPlayer(AWPlayer *currentPlayer){
 
   uint8_t scrollMultiplier = SCROLLSPEED_NORMAL;
 
   // Store cursor data
-  Point cursorPosition = currentPlayer.cursorIndex*TILE_SIZE;
+  Point cursorPosition = currentPlayer->cursorIndex*TILE_SIZE;
   cursorPosition.x -= 8;
   cursorPosition.y -= 8;
   Point cameraPosition = {0, 0};
@@ -382,7 +380,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
   Point originalUnitPosition = {0, 0};
 
   // calculate mapsize in pixels, needed for camera stuff
-  Point mapSizeInPixel = mapSize*TILE_SIZE;
+  Point mapSizeInPixel = {mapWidth*TILE_SIZE, mapHeight*TILE_SIZE};
 
   // stores the state of the round
   AWTurnState turnState = AWTurnState::Default;
@@ -424,7 +422,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
             // Go through possible attack locations when unit is attacking
             case AWTurnState::UnitAttack:{
               // get next marked Pos if it exists
-              Point nextPos = nextMarkedMapPosition(currentIndex, 1);
+              Point nextPos = nextMarkedMapPosition(currentIndex);
               if (nextPos.x > 0) { // This check if enough to verify a correct position
                 // move camera to tile
                 cursorPosition = nextPos*TILE_SIZE;
@@ -449,7 +447,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
             // Go through possible attack locations when unit is attacking
             case AWTurnState::UnitAttack:{
               // get next marked Pos if it exists
-              Point nextPos = nextMarkedMapPosition(currentIndex, -1);
+              Point nextPos = previousMarkedMapPosition(currentIndex);
               if (nextPos.x > 0) { // This check if enough to verify a correct position
                 // move camera to tile
                 cursorPosition = nextPos*TILE_SIZE;
@@ -474,7 +472,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
             // Go through possible attack locations when unit is attacking
             case AWTurnState::UnitAttack:{
               // get next marked Pos if it exists
-              Point nextPos = nextMarkedMapPosition(currentIndex, -1);
+              Point nextPos = previousMarkedMapPosition(currentIndex);
               if (nextPos.x > 0) { // This check if enough to verify a correct position
                 // move camera to tile
                 cursorPosition = nextPos*TILE_SIZE;
@@ -500,7 +498,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
             // Go through possible attack locations when unit is attacking
             case AWTurnState::UnitAttack:{
               // get next marked Pos if it exists
-              Point nextPos = nextMarkedMapPosition(currentIndex, 1);
+              Point nextPos = nextMarkedMapPosition(currentIndex);
               if (nextPos.x > 0) { // This check if enough to verify a correct position
                 // move camera to tile
                 cursorPosition = nextPos*TILE_SIZE;
@@ -621,7 +619,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
             default:
             case AWTurnState::Default:{
               // check for tile
-              MapTile currentMapTile = mapTileData[currentIndex.x + mapSize.x*currentIndex.y];
+              MapTile currentMapTile = map.getItem(currentIndex.x, currentIndex.y);
               MapTileType currentTileType = static_cast<MapTileType>(currentMapTile.tileID);
 
               /////
@@ -630,7 +628,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
                 currentMapTile.unitBelongsTo == ((currentPlayer == player1) ? MapTile::BelongsToPlayer1 : MapTile::BelongsToPlayer2) &&
                 currentMapTile.unitIsActive == GameUnit::UnitStateActive) {
                 // get unit
-                selectedUnit = currentPlayer.getUnitForMapCoordinates({currentIndex.x,currentIndex.y});
+                selectedUnit = currentPlayer->getUnitForMapCoordinates({currentIndex.x,currentIndex.y});
                 if (selectedUnit != nullptr){
                   // select unit on map
                   originalUnitPosition = currentIndex;
@@ -649,7 +647,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
               !currentMapTile.hasUnit) {
 
                 // check if there is space for a new unit
-                if (currentPlayer.units.isFull()) {
+                if (currentPlayer->units.isFull()) {
                   showDialog(LOCA_Unit_limit_reached);
                 }
                 else{
@@ -666,7 +664,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
                     newUnit.mapPosY = currentIndex.y;
                     newUnit.activated = GameUnit::UnitStateDisabled;
 
-                    currentPlayer.units.add(newUnit);
+                    currentPlayer->units.add(newUnit);
                     updateMapForPlayer(currentPlayer);
                   }
                 }
@@ -679,7 +677,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
                   uint8_t selectedOption = showOptions(options, 2);
 
                   if (selectedOption == 0) {
-                    currentPlayer.cursorIndex = currentIndex;
+                    currentPlayer->cursorIndex = currentIndex;
                     return;
                   }
               }
@@ -690,7 +688,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
             case AWTurnState::UnitSelected:{
 
               // get tile at current index
-              MapTile currentTile = mapTileData[currentIndex.x + mapSize.x*currentIndex.y];
+              MapTile currentTile = map.getItem(currentIndex.x, currentIndex.y);
 
               // only continue if unit can move here
               if (currentTile.showSelection && selectedUnit != nullptr){
@@ -883,7 +881,7 @@ int8_t AWGame::showOptions(char_P *options[], uint8_t count){
   }
 }
 
-UnitType AWGame::showShopForBuildingAndPlayer(MapTileType building, AWPlayer &aPlayer){
+UnitType AWGame::showShopForBuildingAndPlayer(MapTileType building, AWPlayer *aPlayer){
 
   // data for the shop
   int8_t menuCursorIDX = 0;
@@ -940,10 +938,10 @@ UnitType AWGame::showShopForBuildingAndPlayer(MapTileType building, AWPlayer &aP
       uint8_t unitCosts = GameUnit::costsOfUnit(unitToBuy);
 
       // check if user has enough money to buy
-      if (unitCosts <= aPlayer.money) {
+      if (unitCosts <= aPlayer->money) {
 
         // substract the amount from the players funds
-        aPlayer.money -= unitCosts;
+        aPlayer->money -= unitCosts;
 
         // return the unit
         return unitToBuy;
@@ -968,7 +966,7 @@ UnitType AWGame::showShopForBuildingAndPlayer(MapTileType building, AWPlayer &aP
 
       // get unit costs
       uint8_t unitCosts = GameUnit::costsOfUnit(unitToDraw);
-      bool canAffordUnit = (unitCosts <= aPlayer.money);
+      bool canAffordUnit = (unitCosts <= aPlayer->money);
 
       // calc draw position
       int8_t yPos = 14 + i*textPadding + yOffset;
@@ -1048,7 +1046,7 @@ UnitType AWGame::showShopForBuildingAndPlayer(MapTileType building, AWPlayer &aP
   return UnitType::None;
 }
 
-void AWGame::drawHudForPlayer(AWPlayer &aPlayer){
+void AWGame::drawHudForPlayer(AWPlayer *aPlayer){
   // Draw player, day and funds
   arduboy.fillRect(0, 0, 128, 7, BLACK);
   arduboy.fillRect(0, 0, 128, 6, WHITE);
@@ -1062,7 +1060,7 @@ void AWGame::drawHudForPlayer(AWPlayer &aPlayer){
   tinyfont.setCursor(86, 1);
   tinyfont.print(AsFlashString(LOCA_funds));
   tinyfont.setCursor(100, 1);
-  tinyfont.print(aPlayer.money*100);
+  tinyfont.print(aPlayer->money*100);
 }
 
 Point AWGame::calculateCameraPosition(Point forCursorPosition){
@@ -1073,7 +1071,7 @@ Point AWGame::calculateCameraPosition(Point forCursorPosition){
   cameraPosition.y = forCursorPosition.y - (arduboy.height()-32)/2;
 
   // calculate mapsize in pixels
-  Point mapSizeInPixel = mapSize*TILE_SIZE;
+  Point mapSizeInPixel = {mapWidth*TILE_SIZE, mapHeight*TILE_SIZE};
 
   // Check for bounds
   if(cameraPosition.x < 0) cameraPosition.x = 0;
@@ -1084,152 +1082,142 @@ Point AWGame::calculateCameraPosition(Point forCursorPosition){
   return cameraPosition;
 }
 
-void AWGame::loadMap(const unsigned char *mapData){
-
-  // clear old map Data
-  if (mapTileData != nullptr) {
-    delete [] mapTileData;
-    mapTileData = nullptr;
-  }
+void AWGame::loadMap(unsigned const char *mapData){
 
   // Reset Buildings
   gameBuildings.clear();
-
+  
   // handle map meta info
   // get size
-  mapSize.x  = pgm_read_byte(mapData+MAPDATAOFFSET_Size);
-  mapSize.y  = pgm_read_byte(mapData+MAPDATAOFFSET_Size+1);
+  this->mapWidth = pgm_read_byte(&mapData[MAPDATAOFFSET_Size + 0]);
+  this->mapHeight = pgm_read_byte(&mapData[MAPDATAOFFSET_Size + 1]);
 
   // p1 meta Data
   Point player1StartCityCoords;
-  player1StartCityCoords.x = pgm_read_byte(mapData+MAPDATAOFFSET_Player1City);
-  player1StartCityCoords.y = pgm_read_byte(mapData+MAPDATAOFFSET_Player1City+1);
+  player1StartCityCoords.x = pgm_read_byte(&mapData[MAPDATAOFFSET_Player1City + 0]);
+  player1StartCityCoords.y = pgm_read_byte(&mapData[MAPDATAOFFSET_Player1City + 1]);
 
   Point player1StartWorkshopCoords;
-  player1StartWorkshopCoords.x = pgm_read_byte(mapData+MAPDATAOFFSET_Player1Workshop);
-  player1StartWorkshopCoords.y = pgm_read_byte(mapData+MAPDATAOFFSET_Player1Workshop+1);
+  player1StartWorkshopCoords.x = pgm_read_byte(&mapData[MAPDATAOFFSET_Player1Workshop + 0]);
+  player1StartWorkshopCoords.y = pgm_read_byte(&mapData[MAPDATAOFFSET_Player1Workshop + 1]);
 
   // p2 meta Data
   Point player2StartCityCoords;
-  player2StartCityCoords.x = pgm_read_byte(mapData+MAPDATAOFFSET_Player2City);
-  player2StartCityCoords.y = pgm_read_byte(mapData+MAPDATAOFFSET_Player2City+1);
+  player2StartCityCoords.x = pgm_read_byte(&mapData[MAPDATAOFFSET_Player2City + 0]);
+  player2StartCityCoords.y = pgm_read_byte(&mapData[MAPDATAOFFSET_Player2City + 1]);
 
   Point player2StartWorkshopCoords;
-  player2StartWorkshopCoords.x = pgm_read_byte(mapData+MAPDATAOFFSET_Player2Workshop);
-  player2StartWorkshopCoords.y = pgm_read_byte(mapData+MAPDATAOFFSET_Player2Workshop+1);
+  player2StartWorkshopCoords.x = pgm_read_byte(&mapData[MAPDATAOFFSET_Player2Workshop + 0]);
+  player2StartWorkshopCoords.y = pgm_read_byte(&mapData[MAPDATAOFFSET_Player2Workshop + 1]);
 
-  //// Load map data
-  // Calculate map lenght
-  uint16_t mapLenght = mapSize.x*mapSize.y;
+  uint8_t i = 0;
+  for(uint8_t y = 0; y < this->mapHeight; ++y)
+  {
+    for(uint8_t x = 0; x < this->mapWidth; ++x)
+    {
+      MapTileType tileType = static_cast<MapTileType>(pgm_read_byte(&mapData[MAPDATAOFFSET_Main + i]));
+      ++i;
+      
+      MapTile & tile = this->map.getItem(x, y);
+      tile.tileID = static_cast<uint8_t>(tileType);	  
+      tile.buildingIsOccupied = 0;
+      tile.buildingBelongsTo = 0;
+      tile.hasUnit = 0;
+      tile.unitBelongsTo = 0;
+      
+      // Check if it's a building
+      if (mapTileIndexIsBuilding(tileType))
+      {
+        GameBuilding building = GameBuilding();
 
-  // create new array of maptiles
-  mapTileData = new MapTile[mapLenght];
-
-  // The index in the loop will be stored here
-  Point currentIndex;
-
-  // Populate array from map data
-  for (uint16_t i = 0; i < mapLenght; i++) {
-
-    // get Tile Data
-    mapTileData[i].tileID = pgm_read_byte(mapData+MAPDATAOFFSET_Main+i);
-    mapTileData[i].buildingIsOccupied = 0;
-    mapTileData[i].buildingBelongsTo = 0;
-    mapTileData[i].hasUnit = 0;
-    mapTileData[i].unitBelongsTo = 0;
-
-    MapTileType tileType = static_cast<MapTileType>(mapTileData[i].tileID);
-
-    // calc index
-    currentIndex.x = i % mapSize.x;
-    currentIndex.y = i / mapSize.x;
-
-    // Check if it's a building
-    if (mapTileIndexIsBuilding(tileType)) {
-      GameBuilding building = GameBuilding();
-
-      // set upd building
-      building.mapPosX = currentIndex.x;
-      building.mapPosY = currentIndex.y;
-      building.isOccupied = 0;
-      building.belongsToPlayer = 0;
-      building.buildingType = mapTileData[i].tileID;
-
-      // Check for city
-      if (tileType == MapTileType::City) {
-        // check for ownership
-        if (currentIndex == player1StartCityCoords) {
-          building.isOccupied = 1;
-          building.belongsToPlayer = MapTile::BelongsToPlayer1;
-        }
-        else if (currentIndex == player2StartCityCoords) {
-          building.isOccupied = 1;
-          building.belongsToPlayer = MapTile::BelongsToPlayer2;
-        }
-      }
-
-      // Check for Factory
-      if (tileType == MapTileType::Factory) {
-        // check for ownership
-        if (currentIndex == player1StartWorkshopCoords) {
-          building.isOccupied = 1;
-          building.belongsToPlayer = MapTile::BelongsToPlayer1;
-        }
-        else if (currentIndex == player2StartWorkshopCoords) {
-          building.isOccupied = 1;
-          building.belongsToPlayer = MapTile::BelongsToPlayer2;
-        }
-      }
-
-      // Check for Headquarters
-      if (tileType == MapTileType::P1HQ){
+        // set upd building
+        building.mapPosX = x;
+        building.mapPosY = y;
         building.isOccupied = 1;
-        building.belongsToPlayer = MapTile::BelongsToPlayer1;
-        player1.cursorIndex = currentIndex;
-      }
-      else if (tileType == MapTileType::P2HQ){
-        building.isOccupied = 1;
-        building.belongsToPlayer = MapTile::BelongsToPlayer2;
-        player2.cursorIndex = currentIndex;
-      }
+        building.belongsToPlayer = 0;
+        building.buildingType = tile.tileID;
+        
+        Point currentIndex = {x, y};
+        
+        switch(tileType)
+        {
+          // Check for city
+          case MapTileType::City:{
+            // check for ownership
+            if (currentIndex == player1StartCityCoords) {
+              building.belongsToPlayer = MapTile::BelongsToPlayer1;
+            }
+            else if (currentIndex == player2StartCityCoords) {
+              building.belongsToPlayer = MapTile::BelongsToPlayer2;
+            }
+            break;
+          }
+          // Check for Factory
+          case MapTileType::Factory:{
+            // check for ownership
+            if (currentIndex == player1StartWorkshopCoords) {
+              building.belongsToPlayer = MapTile::BelongsToPlayer1;
+            }
+            else if (currentIndex == player2StartWorkshopCoords) {
+              building.belongsToPlayer = MapTile::BelongsToPlayer2;
+            }
+            break;
+          }
+          // Check for Player 1 Headquarters
+          case MapTileType::P1HQ:{
+            building.belongsToPlayer = MapTile::BelongsToPlayer1;
+            player1->cursorIndex = currentIndex;
+            break;
+          }
+          // Check for Player 2 Headquarters
+          case MapTileType::P2HQ:{
+            building.belongsToPlayer = MapTile::BelongsToPlayer2;
+            player2->cursorIndex = currentIndex;
+            break;
+          }
+          default:{
+            building.isOccupied = 0;
+            break;
+          }
+        }
 
-      // add building to our global buildings
-      gameBuildings.add(building);
+        // add building to our global buildings
+        gameBuildings.add(building);
+      }
     }
-
   }
 }
 
-void AWGame::updateMapForPlayer(AWPlayer &aPlayer){
+void AWGame::updateMapForPlayer(AWPlayer *aPlayer){
 
   // fill map with fog
   clearMap(true);
 
   // add the enemies units
-  AWPlayer &enemyPlayer = (aPlayer == player1)?player2:player1;
-  for (uint8_t i = 0; i < enemyPlayer.units.getCount(); i++) {
-    GameUnit unit = enemyPlayer.units[i];
+  AWPlayer *enemyPlayer = (aPlayer == player1)?player2:player1;
+  for (uint8_t i = 0; i < enemyPlayer->units.getCount(); i++) {
+    GameUnit unit = enemyPlayer->units[i];
 
     // get the corresponding map tile
-    MapTile tile = mapTileData[unit.mapPosX+unit.mapPosY*mapSize.x];
+    MapTile tile = map.getItem(unit.mapPosX, unit.mapPosY);
     tile.hasUnit = 1;
     tile.unitBelongsTo = (enemyPlayer == player1)?MapTile::BelongsToPlayer1:MapTile::BelongsToPlayer2;
     tile.unitSpriteID = unit.unitType;
     tile.unitIsActive = GameUnit::UnitStateActive;
-    mapTileData[unit.mapPosX+unit.mapPosY*mapSize.x] = tile;
+    map.getItem(unit.mapPosX, unit.mapPosY) = tile;
   }
 
   // udpate the player units
-  for (uint8_t i = 0; i < aPlayer.units.getCount(); i++) {
-    GameUnit unit = aPlayer.units[i];
+  for (uint8_t i = 0; i < aPlayer->units.getCount(); i++) {
+    GameUnit unit = aPlayer->units[i];
 
     // get the corresponding map tile
-    MapTile tile = mapTileData[unit.mapPosX+unit.mapPosY*mapSize.x];
+    MapTile tile = map.getItem(unit.mapPosX, unit.mapPosY);
     tile.hasUnit = 1;
     tile.unitBelongsTo = (aPlayer == player1)?MapTile::BelongsToPlayer1:MapTile::BelongsToPlayer2;
     tile.unitSpriteID = unit.unitType;
     tile.unitIsActive = unit.activated;
-    mapTileData[unit.mapPosX+unit.mapPosY*mapSize.x] = tile;
+    map.getItem(unit.mapPosX, unit.mapPosY) = tile;
 
     // undo fog for units
     // Units can see same far as they can move.
@@ -1256,7 +1244,7 @@ void AWGame::updateMapForPlayer(AWPlayer &aPlayer){
     uint8_t thisPlayer = (aPlayer == player1)?MapTile::BelongsToPlayer1:MapTile::BelongsToPlayer2;
 
     // get the corresponding map tile
-    MapTile tile = mapTileData[building.mapPosX+building.mapPosY*mapSize.x];
+    MapTile tile = map.getItem(building.mapPosX, building.mapPosY);
 
     // check if building belongs to current player
     if (building.isOccupied) {
@@ -1270,7 +1258,7 @@ void AWGame::updateMapForPlayer(AWPlayer &aPlayer){
     }
 
     // udpate maptile
-    mapTileData[building.mapPosX+building.mapPosY*mapSize.x] = tile;
+    map.getItem(building.mapPosX, building.mapPosY) = tile;
 
     // check if building belongs to player, because now we remove the fog of war calculations
     if (!(building.isOccupied && building.belongsToPlayer == thisPlayer)) continue;
@@ -1282,11 +1270,11 @@ void AWGame::updateMapForPlayer(AWPlayer &aPlayer){
 
 void AWGame::clearMap(bool withFog){
   // go trough the whole map
-  for (int8_t y = 0; y < mapSize.y; y++) {
-    for (int8_t x = 0; x < mapSize.x; x++) {
+  for (int8_t y = 0; y < mapHeight; y++) {
+    for (int8_t x = 0; x < mapWidth; x++) {
 
         // get the tile
-        MapTile tile = mapTileData[y*mapSize.x+x];
+        MapTile tile = map.getItem(x, y);
 
         // turn fog on
         tile.showsFog = withFog?1:0;
@@ -1300,7 +1288,7 @@ void AWGame::clearMap(bool withFog){
         tile.unitSpriteID = 0;
 
         // update tile
-         mapTileData[y*mapSize.x+x] = tile;
+        map.getItem(x, y) = tile;
     }
   }
 }
@@ -1312,12 +1300,12 @@ void AWGame::markUnitOnMap(const GameUnit *aUnit){
   uint8_t moveDistance = traits.moveDistance+1;
 
   // check if maptile is a street and give a small bonus
-  MapTile tile = mapTileData[aUnit->mapPosY*mapSize.x+aUnit->mapPosX];
+  MapTile tile = map.getItem(aUnit->mapPosX, aUnit->mapPosY);
   if (mapTileIsStreet(static_cast<MapTileType>(tile.tileID)))
     moveDistance += 1;
 
   // hide unit on map since it follow the cursor
-  mapTileData[aUnit->mapPosY*mapSize.x+aUnit->mapPosX].hasUnit = 0;
+  map.getItem(aUnit->mapPosX, aUnit->mapPosY).hasUnit = 0;
 
   markPositionAsSelectedForUnit({aUnit->mapPosX, aUnit->mapPosY}, moveDistance, unitType);
 }
@@ -1328,10 +1316,10 @@ void AWGame::markPositionAsSelectedForUnit(Point position, int8_t distance, Unit
   if (distance <= 0) return;
 
   // check for bounds
-  if (position.x < 0 || position.x >= mapSize.x || position.y < 0 || position.y >= mapSize.y ) return;
+  if (position.x < 0 || position.x >= mapWidth || position.y < 0 || position.y >= mapHeight ) return;
 
   // get the tile
-  MapTile tile = mapTileData[position.y*mapSize.x+position.x];
+  MapTile tile = map.getItem(position.x, position.y);
 
   // check if unit can move to the field
   if (!tile.canBeAccessedByUnit(unit)) return;
@@ -1339,7 +1327,7 @@ void AWGame::markPositionAsSelectedForUnit(Point position, int8_t distance, Unit
   // set maptile to show the selection if there is no other unit
   if (!tile.hasUnit) {
     tile.showSelection = 1;
-    mapTileData[position.y*mapSize.x+position.x] = tile;
+    map.getItem(position.x, position.y) = tile;
   }
 
   // check for movement malus
@@ -1367,19 +1355,19 @@ void AWGame::unmarkUnitOnMap(const GameUnit *aUnit){
   //safety check
   if (aUnit != nullptr){
     // show again on map
-    mapTileData[aUnit->mapPosY*mapSize.x+aUnit->mapPosX].hasUnit = 1;
+    map.getItem(aUnit->mapPosX, aUnit->mapPosY).hasUnit = 1;
   }
 
   // go trough the whole map and remove selection
-  for (int8_t y = 0; y < mapSize.y; y++) {
-    for (int8_t x = 0; x < mapSize.x; x++) {
+  for (int8_t y = 0; y < mapHeight; y++) {
+    for (int8_t x = 0; x < mapWidth; x++) {
         // get the tile
-        mapTileData[y*mapSize.x+x].showSelection = 0;
+        map.getItem(x, y).showSelection = 0;
     }
   }
 }
 
-void AWGame::markPositionForAttack(Point position, int8_t distance, UnitType unit, AWPlayer &attackingPlayer){
+void AWGame::markPositionForAttack(Point position, int8_t distance, UnitType unit, AWPlayer *attackingPlayer){
 
     // check if we are at the end
     if (distance <= 0) return;
@@ -1388,15 +1376,15 @@ void AWGame::markPositionForAttack(Point position, int8_t distance, UnitType uni
     uint8_t thisPlayer = (attackingPlayer == player1)?MapTile::BelongsToPlayer1:MapTile::BelongsToPlayer2;
 
     // check for bounds
-    if (position.x < 0 || position.x >= mapSize.x || position.y < 0 || position.y >= mapSize.y ) return;
+    if (position.x < 0 || position.x >= mapWidth || position.y < 0 || position.y >= mapHeight ) return;
 
     // get the tile
-    MapTile tile = mapTileData[position.y*mapSize.x+position.x];
+    MapTile tile = map.getItem(position.x, position.y);
 
     // chek if there is an enemy unit
     if (!tile.showsFog && tile.hasUnit && tile.unitBelongsTo != thisPlayer) {
       tile.showSelection = 1;
-      mapTileData[position.y*mapSize.x+position.x] = tile;
+      map.getItem(position.x, position.y) = tile;
     }
 
     // shorten the distance for every step.
@@ -1411,18 +1399,49 @@ void AWGame::markPositionForAttack(Point position, int8_t distance, UnitType uni
     return;
 }
 
+Point AWGame::previousMarkedMapPosition(Point currentPosition){
 
-Point AWGame::nextMarkedMapPosition(Point currentPosition, int8_t direction){
-
-    // iterate through the map
-    for (int8_t i = (currentPosition.x+currentPosition.y*mapSize.x)+direction; i < (mapSize.x*mapSize.y) && i >= 0; i += direction) {
-
-      // get maptile
-      const MapTile tile = mapTileData[i];
-
-      // return coordinates if found
+    for(int8_t x = currentPosition.x - 1; x >= 0; --x)
+    {
+      const MapTile tile = map.getItem(x, currentPosition.y);
+      
       if (tile.showSelection)
-        return {i%mapSize.x,i/mapSize.x};
+        return {x, currentPosition.y};
+    }
+
+    for(int8_t y = currentPosition.y - 1; y >= 0; --y)
+    {
+      for(int8_t x = 0; x >= 0; --x)
+      {
+        const MapTile tile = map.getItem(x, y);
+      
+        if (tile.showSelection)
+          return {x, y};
+      }
+    }
+
+    return {-1,-1};
+}
+
+Point AWGame::nextMarkedMapPosition(Point currentPosition){
+
+    for(uint8_t x = currentPosition.x + 1; x < mapWidth; ++x)
+    {
+      const MapTile tile = map.getItem(x, currentPosition.y);
+      
+      if (tile.showSelection)
+        return {x, currentPosition.y};
+    }
+
+    for(uint8_t y = currentPosition.y + 1; y < mapHeight; ++y)
+    {
+      for(uint8_t x = 0; x < mapWidth; ++x)
+      {
+        const MapTile tile = map.getItem(x, y);
+      
+        if (tile.showSelection)
+          return {x, y};
+      }
     }
 
     return {-1,-1};
@@ -1434,8 +1453,8 @@ void AWGame::drawMapAtPosition(Point pos){
   Point drawPos;
 
   // draw the map
-  for (int8_t y = 0; y < mapSize.y; y++) {
-    for (int8_t x = mapSize.x-1; x >= 0; x--) { // draw the map from right to left helps with the markers
+  for (int8_t y = 0; y < mapHeight; y++) {
+    for (int8_t x = mapWidth-1; x >= 0; x--) { // draw the map from right to left helps with the markers
 
       drawPos.x = pos.x+x*TILE_SIZE;
       drawPos.y = pos.y+y*TILE_SIZE;
@@ -1444,15 +1463,15 @@ void AWGame::drawMapAtPosition(Point pos){
       if (drawPos.x <= -TILE_SIZE || drawPos.x >= arduboy.width() || drawPos.y <= -TILE_SIZE || drawPos.y >= (arduboy.height()+TILE_SIZE)) continue;
 
       // get the tile
-      const MapTile tile = mapTileData[y*mapSize.x+x];
+      const MapTile tile = map.getItem(x, y);
       const MapTileType tileType = static_cast<MapTileType>(tile.tileID);
 
       // draw maptile
       sprites.drawSelfMasked(drawPos.x, drawPos.y, worldSprite, tile.tileID);
 
       // check if tile below is the HQ
-      if (y < mapSize.y-1) {
-        const MapTile tileBelow = mapTileData[((y+1)*mapSize.x)+x];
+      if (y < mapHeight-1) {
+        const MapTile tileBelow = map.getItem(x, y+1);
         const MapTileType tileTypeOfTileBelow = static_cast<MapTileType>(tileBelow.tileID);
 
         // If it's a headquarter draw upper half at the position above
@@ -1557,7 +1576,9 @@ const GameBuilding * AWGame::getBuildingAtCoordinate(Point coordinate){
   return nullptr;
 }
 
-void AWGame::removeFogAtPositionRadiusAndPlayer(Point origin, uint8_t radius, AWPlayer &aPlayer, bool seeThrough){
+void AWGame::removeFogAtPositionRadiusAndPlayer(Point origin, uint8_t radius, AWPlayer *aPlayer, bool seeThrough){
+
+
     // For the raycast to work we need to calculate every point which should
     // be tested around the perimeter of the unit. For that we use Bresenham's
     // circle algorithm to get every point on the perimeter and do a raycast to that point.
@@ -1580,7 +1601,7 @@ void AWGame::removeFogAtPositionRadiusAndPlayer(Point origin, uint8_t radius, AW
     } while (x < 0);
 }
 
-void AWGame::castRayTo(Point origin, bool seeThrough, AWPlayer &aPlayer, int8_t xEnd, int8_t yEnd) {
+void AWGame::castRayTo(Point origin, bool seeThrough, AWPlayer * aPlayer, int8_t xEnd, int8_t yEnd) {
 
   // We are doing here a so called Raycast. It's called this way because
   // it mathematecally shots a "ray" from the origin to the destination Like
@@ -1608,22 +1629,22 @@ void AWGame::castRayTo(Point origin, bool seeThrough, AWPlayer &aPlayer, int8_t 
     uint8_t currentDistance = abs(origin.x-x0) + abs(origin.y-y0);
 
     // check for bounds and remove fog
-    if (x0 >= 0 && y0 >= 0 && x0 < mapSize.x && y0 < mapSize.y && currentDistance <= r) {
+    if (x0 >= 0 && y0 >= 0 && x0 < mapWidth && y0 < mapHeight && currentDistance <= r) {
 
       // get the corresponding map tile
-      MapTile tile = mapTileData[x0+y0*mapSize.x];
+      MapTile tile = map.getItem(x0, y0);
 
       // update tile data
       if (forestLimit >= 0 || seeThrough)
         tile.showsFog = 0;
 
-      mapTileData[x0+y0*mapSize.x] = tile;
+      map.getItem(x0, y0) = tile;
 
       // ignore the origin
       if (currentDistance != 0 && !seeThrough){
 
         // check if there is an Obstacle
-        if (mapTileIsOpaque(static_cast<MapTileType>(mapTileData[x0+y0*mapSize.x].tileID)))
+        if (mapTileIsOpaque(static_cast<MapTileType>(map.getItem(x0, y0).tileID)))
             break;
 
         // check if there is an enemy unit because we can't see through it

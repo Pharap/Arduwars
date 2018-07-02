@@ -5,6 +5,7 @@
 #include <Tinyfont.h>
 #include <Sprites.h>
 #include <List.h>
+#include <Grid.h>
 
 #include "DataClasses.h"
 #include "Localization.h"
@@ -87,7 +88,7 @@ private:
     // Displays map selection
     // It returns a pointer to the selected map in progmem. nullptr if none was selected
     // Attribute is the current state, only multi/singleplayer is relevant.
-    const unsigned char * showMapSelection(AWGameState aState);
+    unsigned const char * showMapSelection(AWGameState aState);
 
     void startNewSinglePlayerGame();  // Starts a new singleplayer game
     void runSinglePlayerGame();       // Place where the singleplayer game runs
@@ -95,7 +96,7 @@ private:
     void startNewMultiplayerPlayerGame();  // Starts a new multiplayer game
     void runMultiPlayerGame();       // Place where the multiplayer game runs
 
-    void doRoundOfPlayer(AWPlayer &currentPlayer);
+    void doRoundOfPlayer(AWPlayer *currentPlayer);
 
     // Game Helper
     void drawMapAtPosition(Point pos); // Draws the map at the given position
@@ -114,19 +115,19 @@ private:
     // Will isntantly return UnitType::None if the building
     // is not the Factory, Airport or the Shipyard.
     // Also returns UnitType::None if the PLayer doesn't buy anything.
-    UnitType showShopForBuildingAndPlayer(MapTileType building, AWPlayer &aPlayer);
+    UnitType showShopForBuildingAndPlayer(MapTileType building, AWPlayer *aPlayer);
 
     // Shows a HUD with name, Days and Funds
-    void drawHudForPlayer(AWPlayer &aPlayer);
+    void drawHudForPlayer(AWPlayer *aPlayer);
 
     // Helper to calculate the camera
     Point calculateCameraPosition(Point forCursorPosition);
 
     // Loads the map from progmem to memory
-    void loadMap(const unsigned char *mapData);
+    void loadMap(unsigned const char *mapData);
 
     // updates the gamemap for the player
-    void updateMapForPlayer(AWPlayer &aPlayer);
+    void updateMapForPlayer(AWPlayer *aPlayer);
 
     // removes all units from the map
     // withFog == true fills the gamemap with fog
@@ -140,21 +141,26 @@ private:
     void unmarkUnitOnMap(const GameUnit *aUnit);
 
     // This method marks the maptiles, where an enemy unit is which can be attacked.
-    void markPositionForAttack(Point position, int8_t distance, UnitType unit, AWPlayer &attackingPlayer);
+    void markPositionForAttack(Point position, int8_t distance, UnitType unit, AWPlayer *attackingPlayer);
 
+    // returns the position of the previous marked tile.
+    // Arguments:
+    // optional currentPosition... the point from where it searches. Default is 0,0.
+    // Returns {-1,-1} if no marker has been found.
+    Point previousMarkedMapPosition(Point currentPosition = {0,0});
+    
     // returns the position of the next marked tile.
     // Arguments:
     // optional currentPosition... the point from where it searches. Default is 0,0.
-    // optional direction... in which direction it will be searched. Default is 1. 1 goes forward, -1 backward
     // Returns {-1,-1} if no marker has been found.
-    Point nextMarkedMapPosition(Point currentPosition = {0,0}, int8_t direction = 1);
+    Point nextMarkedMapPosition(Point currentPosition = {0,0});
 
     // Mark the map at the given position and radius regarding visibility rules
     // e.g. Not through buildings, mountains and enemy units
-    void removeFogAtPositionRadiusAndPlayer(Point origin, uint8_t radius, AWPlayer &aPlayer, bool seeThrough = false);
+    void removeFogAtPositionRadiusAndPlayer(Point origin, uint8_t radius, AWPlayer *aPlayer, bool seeThrough = false);
 
     // Helper function for removeFogAtPositionRadiusAndPlayer
-    void castRayTo(Point origin, bool seeThrough, AWPlayer &aPlayer, int8_t xEnd, int8_t yEnd);
+    void castRayTo(Point origin, bool seeThrough, AWPlayer * aPlayer, int8_t xEnd, int8_t yEnd);
 
     // neat effect directly on the display buffer
     void makeScreenTransition();
@@ -187,8 +193,10 @@ private:
 
     // In these two variables we store the players.
     // There are always two players where the first one is the actual player and the second the AI.
-    AWPlayer player1 = AWPlayer(1);
-    AWPlayer player2 = AWPlayer(2);
+    AWPlayer player1Object;
+    AWPlayer player2Object;
+    AWPlayer *player1 = &player1Object;
+    AWPlayer *player2 = &player2Object;
 
     // This attribute stores the days.
     // A day passes if both players has ended their rounds.
@@ -197,10 +205,14 @@ private:
 
     // In this attribute we store the buildings on the map - max 16.
     List<GameBuilding, 24> gameBuildings;
-
+    
     // Map data
-    MapTile *mapTileData = nullptr;
-    Point mapSize = {0, 0}; // Mapsize is in Maptile coordinates and not in screen coordinates.
+    Grid<MapTile, 24, 16> map;
+    uint8_t mapWidth;
+    uint8_t mapHeight;
+    
+    //MapTile *mapTileData = nullptr;
+    //Point mapSize = {0, 0}; // Mapsize is in Maptile coordinates and not in screen coordinates.
     static constexpr uint8_t mapOffsetY = 8;
 };
 #endif

@@ -199,7 +199,7 @@ public:
   // 2 Bytes in total.
 
   // Function returns the traits for a certain unit type
-  static UnitTraits traitsForUnitType(UnitType unitType);
+  static const UnitTraits traitsForUnitType(UnitType unitType);
 };
 
 constexpr UnitTraits PROGMEM allUnitTraits[16] = {
@@ -263,10 +263,6 @@ public:
 
 // This class defines a Player which has Units, Buildings, Money and other Information.
 class AWPlayer{
-private:
-  // Internal helper for equivalence comparison
-  uint8_t playerID;
-
 public:
 
   // Stores the players Money. MAX 255
@@ -280,9 +276,6 @@ public:
   List<GameUnit, 24> units; // 24 Units make approximately 72 Bytes.
   // Approximately 75 bytes in total.
 
-  // Constructor calls the reset function.
-  AWPlayer(uint8_t aid);
-
   // reset the data of this class
   void reset();
 
@@ -292,9 +285,6 @@ public:
 
   // Default income for one building
   static constexpr uint8_t BaseIncome = 10;
-
-  // operator compares the player ID
-  bool operator==(const AWPlayer& other) const;
 };
 
 // This class is used to tell the map drawing method what to draw.

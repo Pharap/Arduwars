@@ -3,7 +3,7 @@
 
 #include <avr/pgmspace.h>
 
-const unsigned char unitsA_plus_mask[] PROGMEM =
+const unsigned char PROGMEM unitsA_plus_mask[] =
 {
 // width, height,
 16, 16,
