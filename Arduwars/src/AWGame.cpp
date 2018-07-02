@@ -1472,12 +1472,14 @@ void AWGame::drawMapAtPosition(Point pos){
       // the top right corner of a building.
       else if (mapTileIndexIsBuilding(tileType) && tileType != MapTileType::P1HQ && tileType != MapTileType::P2HQ) {
         if (tile.buildingIsOccupied){
+          uint8_t frame = 0;
           if(tile.buildingBelongsTo == MapTile::BelongsToPlayer){
-            sprites.drawPlusMask(drawPos.x+10, drawPos.y-2, mapMarkers_plus_mask, 0);
+            frame = 0;
           }
           else if(tile.buildingBelongsTo == MapTile::BelongsToEnemy){
-            sprites.drawPlusMask(drawPos.x+10, drawPos.y-2, mapMarkers_plus_mask, 1);
+            frame = 1;
           }
+          sprites.drawPlusMask(drawPos.x+10, drawPos.y-2, mapMarkers_plus_mask, frame);
         }
       }
 
