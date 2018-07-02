@@ -740,7 +740,7 @@ void AWGame::doRoundOfPlayer(AWPlayer &currentPlayer){
                     UnitTraits traits = UnitTraits::traitsForUnitType(unitType);
 
                     // mark attack positions
-                    markPositionForAttack({selectedUnit->mapPosX,selectedUnit->mapPosY}, traits.attackRange+1, static_cast<UnitType>(selectedUnit->unitType), currentPlayer);
+                    markPositionForAttack({selectedUnit->mapPosX,selectedUnit->mapPosY}, traits.attackRange+1, currentPlayer);
 
                     // get first marked position if it exists
                     Point nextPos = nextMarkedMapPosition(currentIndex);
@@ -1379,7 +1379,7 @@ void AWGame::unmarkUnitOnMap(const GameUnit *aUnit){
   }
 }
 
-void AWGame::markPositionForAttack(Point position, int8_t distance, UnitType unit, AWPlayer &attackingPlayer){
+void AWGame::markPositionForAttack(Point position, int8_t distance, AWPlayer &attackingPlayer){
 
     // check if we are at the end
     if (distance <= 0) return;
@@ -1403,10 +1403,10 @@ void AWGame::markPositionForAttack(Point position, int8_t distance, UnitType uni
     distance--;
 
     // recursively call this method for every orientation
-    markPositionForAttack({position.x+1, position.y}, distance, unit, attackingPlayer);
-    markPositionForAttack({position.x, position.y-1}, distance, unit, attackingPlayer);
-    markPositionForAttack({position.x-1, position.y}, distance, unit, attackingPlayer);
-    markPositionForAttack({position.x, position.y+1}, distance, unit, attackingPlayer);
+    markPositionForAttack({position.x+1, position.y}, distance, attackingPlayer);
+    markPositionForAttack({position.x, position.y-1}, distance, attackingPlayer);
+    markPositionForAttack({position.x-1, position.y}, distance, attackingPlayer);
+    markPositionForAttack({position.x, position.y+1}, distance, attackingPlayer);
 
     return;
 }
