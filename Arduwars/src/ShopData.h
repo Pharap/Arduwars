@@ -31,37 +31,54 @@ const uint8_t unitPrices[] PROGMEM = {
   120
 };
 
-// All units obtainable at a factory
-const UnitType buyableUnitsAtFactory[] PROGMEM = {
-  UnitType::Soldier,
-  UnitType::Mech,
-  UnitType::SpecOps,
+class ShopDefinition
+{
+private:
+	UnitType minUnitType = UnitType::None;
+	UnitType maxUnitType = UnitType::None;
 
-  // Vehicles
-  UnitType::Scout,
-  UnitType::Assist,
-  UnitType::Tank,
-  UnitType::BigTank,
-  UnitType::Artillery,
-  UnitType::Rocket,
-  UnitType::Missiles
-};
-constexpr static uint8_t NumberOfBuyableUnitsAtFactory = arrayLength(buyableUnitsAtFactory);
+public:
+	constexpr ShopDefinition(void) = default;
 
-// All units obtainable at an airport
-const UnitType buyableUnitsAtAirPort[] PROGMEM = {
-  UnitType::Heli,
-  UnitType::Fighter,
-  UnitType::Bomber,
-};
-constexpr static uint8_t NumberOfBuyableUnitsAtAirport = arrayLength(buyableUnitsAtAirPort);
+	constexpr ShopDefinition(UnitType minUnitType, UnitType maxUnitType)
+		: minUnitType(minUnitType), maxUnitType(maxUnitType)
+	{
+	}
 
-// All units obtainable at a shipyard
-const UnitType buyableUnitsAtShipyard[] PROGMEM = {
-  UnitType::Transportship,
-  UnitType::Cruiser,
-  UnitType::Battleship
+	constexpr UnitType getMinUnitType(void) const
+	{
+		return this->minUnitType;
+	}
+	
+	constexpr UnitType getMaxUnitType(void) const
+	{
+		return this->maxUnitType;
+	}
+	
+	constexpr uint8_t getNumberOfBuyableUnits(void) const
+	{
+		return 1 + (static_cast<uint8_t>(this->maxUnitType) - static_cast<uint8_t>(this->minUnitType));
+	}
+	
+	constexpr bool isBuyable(UnitType unitType) const
+	{
+		return (unitType >= this->minUnitType) && (unitType <= this->maxUnitType);
+	}
+
+	constexpr UnitType getUnitTypeAtIndex(uint8_t index) const
+	{
+		return static_cast<UnitType>(static_cast<uint8_t>(this->minUnitType) + index);
+	}
 };
-constexpr static uint8_t NumberOfBuyableUnitsAtShipyard = arrayLength(buyableUnitsAtShipyard);
+
+const ShopDefinition ShopDefinitions[] PROGMEM = 
+{
+	// Factory
+	ShopDefinition(UnitType::Soldier, UnitType::Missiles),
+	// Airport
+	ShopDefinition(UnitType::Heli, UnitType::Bomber),
+	// Shipyard
+	ShopDefinition(UnitType::Cruiser, UnitType::Transportship),
+};
 
 #endif

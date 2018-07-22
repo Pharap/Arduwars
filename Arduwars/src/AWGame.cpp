@@ -883,37 +883,27 @@ int8_t AWGame::showOptions(char_P *options[], uint8_t count){
   }
 }
 
+#include "ProgmemReadAnything.h"
+#include <UtilityFunctions.h>
+
 UnitType AWGame::showShopForBuildingAndPlayer(MapTileType building, AWPlayer &aPlayer){
+    
+  // check building type
+  if(building < MapTileType::Factory || building > MapTileType::Shipyard)
+    return UnitType::None;
+    
+  const ShopDefinition * shopType = &ShopDefinitions[static_cast<uint8_t>(building) - static_cast<uint8_t>(MapTileType::Factory)];
+  
+  ShopDefinition shop;
+  pgm_readAnything(shopType, shop);
 
   // data for the shop
-  int8_t menuCursorIDX = 0;
-  uint8_t numberOfUnits;
-  const UnitType *buyableUnits; // array is stored in progmem!
+  int8_t menuCursorIndex = 0;
 
   // helper for drawing
-  UnitType unitToDraw;
-  int8_t yOffset = 0;
-  const uint8_t textPadding = 8;
-
-  // check building type
-  switch (building) {
-    case MapTileType::Factory:{
-      numberOfUnits = NumberOfBuyableUnitsAtFactory;
-      buyableUnits = buyableUnitsAtFactory;
-      break;
-    }
-    case MapTileType::Airport:{
-      numberOfUnits = NumberOfBuyableUnitsAtAirport;
-      buyableUnits = buyableUnitsAtAirPort;
-      break;
-    }
-    case MapTileType::Shipyard:{
-      numberOfUnits = NumberOfBuyableUnitsAtShipyard;
-      buyableUnits = buyableUnitsAtShipyard;
-      break;
-    }
-    default: return UnitType::None;
-  }
+  constexpr uint8_t textPadding = 8;
+    
+  const uint8_t numberOfUnits = shop.getNumberOfBuyableUnits();
 
   // game Loop
   while (true) {
@@ -924,10 +914,12 @@ UnitType AWGame::showShopForBuildingAndPlayer(MapTileType building, AWPlayer &aP
     arduboy.pollButtons();
 
     if (arduboy.justPressed(DOWN_BUTTON)){
-      menuCursorIDX++;
+      if(menuCursorIndex < numberOfUnits - 1)
+        menuCursorIndex++;
     }
     if (arduboy.justPressed(UP_BUTTON)){
-      menuCursorIDX--;
+      if(menuCursorIndex > 0)
+        menuCursorIndex--;
     }
     // Exit on A button press
     if (arduboy.justPressed(A_BUTTON)){
@@ -936,8 +928,8 @@ UnitType AWGame::showShopForBuildingAndPlayer(MapTileType building, AWPlayer &aP
     // Buy Unit on button press
     if (arduboy.justPressed(B_BUTTON)){
       // get selected unit
-      UnitType unitToBuy = static_cast<UnitType>(pgm_read_byte(buyableUnits+menuCursorIDX));
-      uint8_t unitCosts = GameUnit::costsOfUnit(unitToBuy);
+      const UnitType unitToBuy = shop.getUnitTypeAtIndex(menuCursorIndex);
+      const uint8_t unitCosts = GameUnit::costsOfUnit(unitToBuy);
 
       // check if user has enough money to buy
       if (unitCosts <= aPlayer.money) {
@@ -951,34 +943,35 @@ UnitType AWGame::showShopForBuildingAndPlayer(MapTileType building, AWPlayer &aP
     }
 
     // limit and wrap the cursor
-    menuCursorIDX = max(menuCursorIDX, 0);
-    menuCursorIDX = min(menuCursorIDX, numberOfUnits-1);
-    yOffset = (4-menuCursorIDX)*textPadding;
-    yOffset = min(yOffset, 0);
+    int8_t yOffset = (4 - menuCursorIndex) * textPadding;
+    if(yOffset > 0)
+      yOffset = 0;
 
     // Drawing
     // Infobox
-    arduboy.fillRoundRect(3, 9, arduboy.width()-6, arduboy.height()-10, 5, BLACK);
-    arduboy.fillRoundRect(4, 10, arduboy.width()-8, arduboy.height()-13, 3, WHITE);
-
+    arduboy.fillRoundRect(3, 9, arduboy.width() - 6, arduboy.height() - 10, 5, BLACK);
+    arduboy.fillRoundRect(4, 10, arduboy.width() - 8, arduboy.height() - 13, 3, WHITE);
+  
     // draw Units to buy
     for (uint8_t i = 0; i < numberOfUnits; i++) {
-      // get unit
-      unitToDraw = static_cast<UnitType>(pgm_read_byte(buyableUnits+i));
-
-      // get unit costs
-      uint8_t unitCosts = GameUnit::costsOfUnit(unitToDraw);
-      bool canAffordUnit = (unitCosts <= aPlayer.money);
 
       // calc draw position
-      int8_t yPos = 14 + i*textPadding + yOffset;
+      const int8_t yPos = 14 + (i * textPadding) + yOffset;
 
       // check if out of bounds
-      if (yPos < 10 || yPos > arduboy.height()-8) continue;
+      if (yPos < 10 || yPos > arduboy.height() - 8) continue;
+      
+      // get unit
+      //unitToDraw = static_cast<UnitType>(pgm_read_byte(buyableUnits+i));
+      const UnitType unitToDraw = shop.getUnitTypeAtIndex(i);
+
+      // get unit costs
+      const uint8_t unitCosts = GameUnit::costsOfUnit(unitToDraw);
+      const bool canAffordUnit = (unitCosts <= aPlayer.money);
 
       // set cursor
-      // Intend the text if unit is buyable and selected
-      tinyfont.setCursor(12 + (((menuCursorIDX == i) && canAffordUnit)?4:0), yPos);
+      // Indent the text if unit is buyable and selected
+      tinyfont.setCursor(12 + (((menuCursorIndex == i) && canAffordUnit) ? 4 : 0), yPos);
 
       // The unitnames are stored in progmem inside an array wich is also in progmem.
       // This means we have to do two special things.
@@ -999,46 +992,43 @@ UnitType AWGame::showShopForBuildingAndPlayer(MapTileType building, AWPlayer &aP
     }
 
     // draw cursor
-    tinyfont.setCursor(6, 14 + menuCursorIDX*textPadding + yOffset);
+    tinyfont.setCursor(6, 14 + (menuCursorIndex * textPadding) + yOffset);
     tinyfont.print(AsFlashString(LOCA_Cursor));
 
     // draw the sprite of the selected unit
 
     // get the unit
-    unitToDraw = static_cast<UnitType>(pgm_read_byte(buyableUnits+menuCursorIDX));
+    const UnitType unitToDraw = shop.getUnitTypeAtIndex(menuCursorIndex);
 
-    // unitSprite
-    const unsigned char *unitSprite = nullptr;
-
-    // get correct sprite
-    if(aPlayer == player1)
-      unitSprite = unitsA_plus_mask;
-    else
-      unitSprite = unitsB_plus_mask;
+    // get correct unitSprite
+    const unsigned char *unitSprite = (aPlayer == player1) ? unitsA_plus_mask : unitsB_plus_mask;
 
     // Draw unit
-    // we can safely cast the unittype since by design it is the index in the spritesheet
-    sprites.drawPlusMask(90, 12, unitSprite, static_cast<uint8_t>(unitToDraw)*2+(arduboy.frameCount/10)%2);
-
-    // draw Unit specs
-    UnitTraits traits = UnitTraits::traitsForUnitType(unitToDraw);
-
-    // Costs
-    uint8_t unitPrice = GameUnit::costsOfUnit(unitToDraw);
+    // we can safely cast the unit type since by design it is the index in the spritesheet
+    sprites.drawPlusMask(90, 12, unitSprite, static_cast<uint8_t>(unitToDraw) * 2 + (arduboy.frameCount / 10) % 2);
+    
+    // Draw titles
     tinyfont.setCursor(76, 34);
     tinyfont.print(AsFlashString(LOCA_funds));
-    tinyfont.setCursor(100 - ((unitPrice>100)?5:0), 34);
-    tinyfont.print(unitPrice*100); // Times 100 makes the value look larger but we still can store it in a byte :)
-
-    // Attack
     tinyfont.setCursor(76, 42);
     tinyfont.print(AsFlashString(LOCA_Trait_attack));
+    tinyfont.setCursor(76, 50);
+    tinyfont.print(AsFlashString(LOCA_Trait_speed));
+
+    // Cost
+    const uint8_t unitPrice = GameUnit::costsOfUnit(unitToDraw);
+    
+    tinyfont.setCursor(100 - ((unitPrice > 100) ? 5 : 0), 34);
+    tinyfont.print(unitPrice * 100); // Times 100 makes the value look larger but we still can store it in a byte :)
+
+    // draw Unit specs
+    const UnitTraits traits = UnitTraits::traitsForUnitType(unitToDraw);
+
+    // Attack
     tinyfont.setCursor(115, 42);
     tinyfont.print(traits.attackPower);
 
     // Speed
-    tinyfont.setCursor(76, 50);
-    tinyfont.print(AsFlashString(LOCA_Trait_speed));
     tinyfont.setCursor(115, 50);
     tinyfont.print(traits.moveDistance);
 
