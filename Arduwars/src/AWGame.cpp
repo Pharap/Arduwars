@@ -1518,31 +1518,46 @@ void AWGame::drawMapAtPosition(Point pos){
   }
 }
 
-void AWGame::makeScreenTransition(){
-  uint8_t *dbuff = arduboy.getBuffer();
+void AWGame::makeScreenTransition()
+{
+	// Get buffer
+	uint8_t * displayBuffer = arduboy.getBuffer();
 
-  for (uint8_t i = 0; i < arduboy.width(); i++) {
-      for (uint8_t x = 0; x < arduboy.width(); x++) {
-        for (uint8_t y = 0; y < 8; y++) {
-          if (y%2==0) {
-            if (x == arduboy.width()-1)
-              dbuff[x+y*arduboy.width()] = 0;
-            else
-              dbuff[x+y*arduboy.width()] = dbuff[x+y*arduboy.width()+1];
-          }
-          else{
-            uint8_t helperX = arduboy.width()-1-x;
-            if (helperX == 0)
-              dbuff[helperX+y*arduboy.width()] = 0;
-            else
-              dbuff[helperX+y*arduboy.width()] = dbuff[helperX+y*arduboy.width()-1];
-          }
-        }
-      }
+	// Cache all constants, just in case
+	const uint8_t width = arduboy.width();
+	const uint8_t firstX = 0;
+	const uint8_t lastX = (width - 1);
 
-      arduboy.display();
-      delay(1);
-  }
+	const uint8_t height = arduboy.height();
+	const uint8_t dataHeight = (height / 8);
+	const uint8_t ySteps = (dataHeight / 2);
+
+	for (uint8_t step = 0; step < width; ++step)
+	{
+		for (uint8_t y = 0; y < ySteps; ++y)
+		{
+			const uint8_t evenStep = (y * 2);
+			const uint8_t oddStep = (evenStep + 1);	
+
+			const uint16_t evenOffset = (evenStep * width);
+			const uint16_t oddOffset = (oddStep * width);
+
+			for (uint8_t x = 0; x < width; ++x)
+			{
+				// Move even rows
+				const uint16_t evenOffsetX = (evenOffset + x);
+				displayBuffer[evenOffsetX] = (x < lastX) ? displayBuffer[evenOffsetX + 1] : 0;
+
+				// Move odd rows
+				const uint16_t oddOffsetX = (oddOffset + (lastX - x));
+				displayBuffer[oddOffsetX] = (x > firstX) ? displayBuffer[oddOffsetX - 1] : 0;
+			}
+		}
+
+		// draw buffer
+		arduboy.display();
+		delay(1);
+	}
 }
 
 const GameBuilding * AWGame::getBuildingAtCoordinate(Point coordinate){
